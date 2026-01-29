@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxAudio: Vocalized Audio Synthesis via Multi-Reward Autoregressive Flow Matching</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Noto+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    
+    <style>
+        :root {
+            --primary-color: #24292e;
+            --accent-color: #3f51b5;
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --light-gray: #f8f9fa;
+            --border-color: #e0e0e0;
+        }
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Google Sans', sans-serif;
+            color: #202124;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 10px;
+            margin-top: 50px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header & Buttons */
+        .header-links {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .btn-github {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-github:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Abstract & Teaser */
+        .teaser-img {
+            width: 100%;
+            max-width: 900px;
+            display: block;
+            margin: 0 auto 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .abstract-text {
+            text-align: justify;
+            background-color: var(--light-gray);
+            padding: 30px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+        }
+
+        /* Tables & Audio */
+        .audio-section {
+            margin-bottom: 40px;
+        }
+
+        .description {
+            margin-bottom: 20px;
+        }
+
+        .caption-placeholder {
+            font-style: italic;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* Left-aligned variant for section-specific prompts (e.g., Vocalized) */
+        .caption-placeholder.left-align {
+            text-align: left;
+            display: block;
+            margin-left: 0;
+        }
+
+        /* Ablation prompt: left-align within its cell to match other captions */
+        .centered-prompt {
+            text-align: left;
+            color: #666;
+            font-style: italic;
+            font-size: 0.95rem;
+            padding: 8px 0 8px 0; /* keep vertical padding, rely on cell padding for horizontal inset */
+        }
+
+        .table-responsive{overflow-x:auto;display:block;text-align:center}
+        table {
+            width: auto; /* size to content */
+            margin: 0 auto; /* center horizontally */
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: var(--light-gray);
+            font-weight: 600;
+        }
+
+        /* Keep bottom borders on table rows so tables show a closing line */
+
+        .model-label {
+            font-weight: bold;
+            font-size: 0.95rem;
+            background-color: #fafafa;
+            width: 15%;
+        }
+
+        /* Center audio horizontally inside its table cell only */
+        .centered-cell { text-align:center; padding:15px; vertical-align:middle; }
+        .centered-cell audio { display:inline-block; width:240px; max-width:100%; }
+        .centered-cell .gt-prompt { margin-top:8px; color:#666; font-style:italic; font-size:0.95rem; }
+
+        /* Left-align GT prompt when rendering inside the Vocalized section's table body */
+        #vocalized-table-body .gt-prompt {
+            text-align: left;
+            width: 100%;
+            margin-top: 8px;
+            color: #666;
+            font-style: italic;
+            font-size: 0.95rem;
+        }
+
+        .sub-label {
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        audio {
+            width: 2000px;
+            max-width: 100%;
+            height: 40px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Make ablation audio players uniform and visually consistent */
+        #ablation-table-body audio {
+            width: 240px;
+            max-width: 100%;
+            height: 40px;
+            display: inline-block;
+            margin: 0 auto;
+        }
+        
+        /* Highlight specific cells */
+        .highlight {
+            background-color: #f0f4ff; /* Light blue tint for "Ours" */
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            table { display: block; overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>VoxAudio: Vocalized Audio Synthesis via<br> Multi-Reward Autoregressive Flow Matching</h1>
+
+        <div class="header-links">
+            <a href="https://github.com/VoxAudio/VoxAudio.github.io" target="_blank" style="text-decoration: none;">
+                <button class="btn-github">
+                    <i class="fab fa-github"></i> View on GitHub
+                </button>
+            </a>
+        </div>
+
+        <img src="./head.png" alt="VoxAudio Architecture Overview" class="teaser-img">
+
+        
+        <div class="abstract-text">
+            <h3>Abstract</h3>
+            <p>
+                Vocalized audio synthesis is a practical requirement for unified scene audio generation, where a model must render both explicit speech and environment audio for downstream applications such as virtual worlds and multimodal assistants. Current Text-to-Audio (T2A) frameworks frequently degrade speech or rely on post-hoc composition, limiting holistic control and real-time use.
+            </p>
+            <p>
+                We present <strong>VoxAudio</strong>, a causal autoregressive flow matching model for unified and controllable vocalized audio generation. VoxAudio is trained on a large-scale corpus with captions that explicitly quote transcribed speech, enabling direct supervision of lexical content within realistic acoustic contexts. For streaming, we formulate autoregressive flow matching with chunk-level causality and independent per-chunk noise scheduling, and perform sliding-window inference with KV caching to achieve real-time, high-quality generation. We further incorporate REPresentation Alignment (REPA) to accelerate convergence and strengthen semantic grounding, and adopt a multi-reward Negative-aware FineTuning (NFT) strategy to optimize semantic coherence, linguistic precision, and aesthetic quality via aggregated reward signals. Experiments show that VoxAudio achieves state-of-the-art performance on objective metrics, producing articulate speech synchronized with complex environmental soundscapes.
+            </p>
+        </div>
+        
+        <h2>Audio Synthesis</h2>
+        <div class="description">
+            <p>
+                Here we present the audio synthesis performance of <strong>VoxAudio</strong>. We compare our method with Ground Truth recordings, our own Reinforcement Learning (RL) ablation variants, and other state-of-the-art (SOTA) baselines.
+            </p>
+        </div>
+
+        <h3>General Audio Synthesis</h3>
+        <p>
+            <strong>General Audio Synthesis</strong> focuses on generating high-fidelity acoustic signals conditioned on natural language descriptions, covering diverse environmental sounds and acoustic events. VoxAudio is capable of synthesizing realistic environmental textures and soundscapes even under causal streaming constraints.
+        </p>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="model-label">Model</th>
+                        <th> </th>
+                        <th> </th>
+                        <th> </th>
+                        <th> </th>
+                        <th> </th>
+                    </tr>
+                </thead>
+                <tbody id="general-table-body">
+                    <!-- Rendered by JS: edit the `generalData` array in the script to change these files -->
+                </tbody>
+            </table>
+        </div>
+
+        <br><hr><br>
+
+        <h3>Vocalized Audio Synthesis</h3>
+        <p>
+            <strong>Vocalized Audio Synthesis</strong> is a more challenging task that requires the model to render both explicit, intelligible speech and consistent environmental audio simultaneously from a single prompt. VoxAudio uses a unified approach to generate articulate speech synchronized with complex soundscapes.
+        </p>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="model-label">Model</th>
+                        <th> </th>
+                        <th> </th>
+                        <th> </th>
+                        <th> </th>
+                        <th> </th>
+                    </tr>
+                </thead>
+                <tbody id="vocalized-table-body">
+                    <!-- Rendered by JS: edit the `vocalizedData` array in the script to change these files -->
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Ablation Study</h2>
+        <p>
+            In this section, we investigate the impact of our core architectural designs: <strong>REPresentation Alignment (REPA)</strong> and the <strong>Sliding Window</strong> inference strategy. These components are critical for establishing semantic grounding and enabling real-time streaming capability.
+        </p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th style="width: 25%;">w/o REPA</th>
+                    <th style="width: 25%;">w/o Sliding Window</th>
+                    <th style="width: 25%;">VoxAudio (Full)</th>
+                </tr>
+            </thead>
+            <tbody id="ablation-table-body">
+                <!-- Rendered by JS: each group will be a two-row block: first row = label + prompt (colspan=3); second row = empty + audio1 + audio2 + audio3 -->
+            </tbody>
+        </table>
+
+        <div style="text-align: center; margin-top: 60px; color: #888; font-size: 0.9rem;">
+            <p>&copy; 2026 VoxAudio Project.</p>
+        </div>
+
+        </div>
+
+        <script>
+        // Simple renderer for the 5-column audio tables.
+        // Edit the arrays below (generalData, vocalizedData, ablationFiles) to point to your WAV files.
+
+        function createCell(tagName, className, attrs = {}){
+            const el = document.createElement(tagName);
+            if(className) el.className = className;
+            Object.entries(attrs).forEach(([k,v])=> el.setAttribute(k,v));
+            return el;
+        }
+
+        function audioElement(src){
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            const source = document.createElement('source');
+            source.src = src || '';
+            source.type = 'audio/wav';
+            audio.appendChild(source);
+            return audio;
+        }
+
+        // Renders one or many N-column blocks into a tbody.
+        // `blocks` can be a single data object or an array of data objects.
+        // Each block may specify arrays: baselineLabels/baselines and oursLabels/oursFiles.
+        // The renderer will compute the number of sample columns automatically (default 5).
+        function render5colTable(tbodyId, blocks){
+            const tbody = document.getElementById(tbodyId);
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            blocks = Array.isArray(blocks) ? blocks : [blocks];
+
+            blocks.forEach((data, blockIndex) => {
+                // determine number of sample columns (default to 5)
+                const n = Math.max(
+                    data.baselineLabels ? data.baselineLabels.length : 0,
+                    data.baselines ? data.baselines.length : 0,
+                    data.oursLabels ? data.oursLabels.length : 0,
+                    data.oursFiles ? data.oursFiles.length : 0,
+                    5
+                );
+
+                // prepare default names for missing labels
+                const defaultNames = ['AudioGen','AudioLDM-2','Tango2','MMAudio'];
+                function fillNames(arr, prefix){
+                    const out = Array.isArray(arr) ? arr.slice(0,n) : [];
+                    for(let i=out.length;i<n;i++){
+                        out.push(defaultNames[i] || `${prefix} ${i+1}`);
+                    }
+                    return out;
+                }
+
+                const baseNames = fillNames(data.baselineLabels, 'Baseline');
+                const oursNames = fillNames(data.oursLabels, 'Ours');
+                const baseFiles = (Array.isArray(data.baselines) ? data.baselines.slice(0,n) : []).concat(Array(n).fill('')).slice(0,n);
+                const oursFiles = (Array.isArray(data.oursFiles) ? data.oursFiles.slice(0,n) : []).concat(Array(n).fill('')).slice(0,n);
+
+                // Ground truth row (spans n columns)
+                const trGT = document.createElement('tr');
+                const tdLabel = createCell('td','model-label');
+                tdLabel.textContent = data.label || 'Ground Truth';
+                const tdAudio = createCell('td','centered-cell');
+                tdAudio.colSpan = n;
+                // Only render a GT audio player if a groundTruth path is provided.
+                if(data.groundTruth){
+                    tdAudio.appendChild(audioElement(data.groundTruth));
+                }
+                // Always show the prompt text under the GT area even when GT is missing.
+                if(data.prompt){
+                    const p = createCell('div','gt-prompt');
+                    p.textContent = data.prompt;
+                    tdAudio.appendChild(p);
+                }
+                trGT.appendChild(tdLabel);
+                trGT.appendChild(tdAudio);
+                tbody.appendChild(trGT);
+
+                // Baselines: label row + files row
+                const trBaseLabels = document.createElement('tr');
+                const tdBaseLabel = createCell('td','model-label');
+                tdBaseLabel.rowSpan = 2;
+                tdBaseLabel.textContent = 'Baselines';
+                trBaseLabels.appendChild(tdBaseLabel);
+                baseNames.forEach(name => {
+                    const td = createCell('td');
+                    const span = createCell('span','sub-label');
+                    span.textContent = name;
+                    td.appendChild(span);
+                    trBaseLabels.appendChild(td);
+                });
+                tbody.appendChild(trBaseLabels);
+
+                const trBaseFiles = document.createElement('tr');
+                baseFiles.forEach(src => {
+                    const td = createCell('td');
+                    td.appendChild(audioElement(src));
+                    trBaseFiles.appendChild(td);
+                });
+                tbody.appendChild(trBaseFiles);
+
+                // Ours: label row + files row
+                const trOursLabels = document.createElement('tr');
+                const tdOursLabel = createCell('td','model-label');
+                tdOursLabel.rowSpan = 2;
+                tdOursLabel.textContent = 'Ours (Ablations)';
+                trOursLabels.appendChild(tdOursLabel);
+                oursNames.forEach(lbl => {
+                    const td = createCell('td');
+                    const span = createCell('span','sub-label');
+                    span.textContent = lbl;
+                    td.appendChild(span);
+                    trOursLabels.appendChild(td);
+                });
+                tbody.appendChild(trOursLabels);
+
+                const trOursFiles = document.createElement('tr');
+                oursFiles.forEach(src => {
+                    const td = createCell('td');
+                    td.appendChild(audioElement(src));
+                    trOursFiles.appendChild(td);
+                });
+                tbody.appendChild(trOursFiles);
+
+                // separator between blocks (span full width = label + n)
+                if(blockIndex < blocks.length - 1){
+                    const sep = document.createElement('tr');
+                    const tdsep = createCell('td');
+                    tdsep.colSpan = n + 1;
+                    tdsep.style.padding = '8px 0';
+                    tdsep.innerHTML = '<div style="height:1px;background:var(--border-color);width:100%;opacity:0.7"></div>';
+                    sep.appendChild(tdsep);
+                    tbody.appendChild(sep);
+                }
+            });
+        }
+
+        // Render one or more ablation groups.
+        // Each group may be either an array of 3 file paths, or an object:
+        // { files: [f1,f2,f3], prompt: 'Prompt text' }
+        // If a prompt is provided it will be rendered above the group's audio row
+        // and will use the left-aligned caption style similar to Vocalized prompts.
+        function renderAblationTable(tbodyId, groups){
+            const tbody = document.getElementById(tbodyId);
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            groups = Array.isArray(groups) ? groups : [groups];
+            groups.forEach((group, idx) => {
+                let files = [];
+                let prompt = '';
+                let label = `Item ${idx+1}`;
+                if(Array.isArray(group)){
+                    files = group;
+                } else if(group && Array.isArray(group.files)){
+                    files = group.files;
+                    prompt = group.prompt || '';
+                    label = group.label || label;
+                }
+
+                // Row 1: left column = label (rowSpan=2), right side = single centered prompt spanning 3 columns
+                const trTop = document.createElement('tr');
+                const tdLabel = createCell('td','model-label');
+                tdLabel.rowSpan = 2;
+                tdLabel.textContent = label;
+                trTop.appendChild(tdLabel);
+
+                const tdPrompt = createCell('td','centered-prompt');
+                tdPrompt.colSpan = 3;
+                tdPrompt.textContent = prompt || '';
+                trTop.appendChild(tdPrompt);
+                tbody.appendChild(trTop);
+
+                // Row 2: three separate audio cells (one per ablation column)
+                const trFiles = document.createElement('tr');
+                const audioFiles = (files || []).concat(Array(3).fill('')).slice(0,3);
+                audioFiles.forEach(src => {
+                    const td = createCell('td');
+                    td.appendChild(audioElement(src));
+                    trFiles.appendChild(td);
+                });
+                tbody.appendChild(trFiles);
+
+                if(idx < groups.length - 1){
+                    const sep = document.createElement('tr');
+                    const tdsep = createCell('td');
+                    tdsep.colSpan = 4; // spans all columns
+                    tdsep.style.padding = '8px 0';
+                    tdsep.innerHTML = '<div style="height:1px;background:var(--border-color);width:100%;opacity:0.7"></div>';
+                    sep.appendChild(tdsep);
+                    tbody.appendChild(sep);
+                }
+            });
+        }
+
+        // --- Example data: multiple blocks per section ---
+        // Each array item is one block; add/remove items as needed.
+        const generalBlocks = [
+            {
+                label: 'Example 1 (GT)',
+                groundTruth: 'wav/ground_truth/audiocaps/84.wav',
+                prompt: 'Prompt: [Water pouring down a drain with a series of metal clangs followed by a metal chain rattling.]',
+                baselines: ['wav/audiogen/audiocaps/84.wav','wav/genau/audiocaps/84.wav','wav/audioldm2/audiocaps/84.wav','wav/tango2/audiocaps/84.wav','wav/mmaudio/audiocaps/84.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/audiocaps/84.wav','wav/rl_se/audiocaps/84.wav','wav/rl_ae/audiocaps/84.wav','wav/rl_li/audiocaps/84.wav','wav/voxaudio/audiocaps/84.wav']
+            },
+            {
+                label: 'Example 2 (GT)',
+                groundTruth: 'wav/ground_truth/audiocaps/2989.wav',
+                prompt: 'Prompt: [An engine revving and tires squealing.]',
+                baselines: ['wav/audiogen/audiocaps/2989.wav','wav/genau/audiocaps/2989.wav','wav/audioldm2/audiocaps/2989.wav','wav/tango2/audiocaps/2989.wav','wav/mmaudio/audiocaps/2989.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/audiocaps/2989.wav','wav/rl_se/audiocaps/2989.wav','wav/rl_ae/audiocaps/2989.wav','wav/rl_li/audiocaps/2989.wav','wav/voxaudio/audiocaps/2989.wav']
+            },
+            {
+                label: 'Example 3 (GT)',
+                groundTruth: 'wav/ground_truth/audiocaps/4728.wav',
+                prompt: 'Prompt: [A bird sings followed by drumming]',
+                baselines: ['wav/audiogen/audiocaps/4728.wav','wav/genau/audiocaps/4728.wav','wav/audioldm2/audiocaps/4728.wav','wav/tango2/audiocaps/4728.wav','wav/mmaudio/audiocaps/4728.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/audiocaps/4728.wav','wav/rl_se/audiocaps/4728.wav','wav/rl_ae/audiocaps/4728.wav','wav/rl_li/audiocaps/4728.wav','wav/voxaudio/audiocaps/4728.wav']
+            },
+            {
+                label: 'Example 4 (GT)',
+                groundTruth: 'wav/ground_truth/audiocaps/188.wav',
+                prompt: 'Prompt: [Distant murmuring followed by a child cooing and laughter.]',
+                baselines: ['wav/audiogen/audiocaps/188.wav','wav/genau/audiocaps/188.wav','wav/audioldm2/audiocaps/188.wav','wav/tango2/audiocaps/188.wav','wav/mmaudio/audiocaps/188.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/audiocaps/188.wav','wav/rl_se/audiocaps/188.wav','wav/rl_ae/audiocaps/188.wav','wav/rl_li/audiocaps/188.wav','wav/voxaudio/audiocaps/188.wav']
+            }
+        ];
+
+        const vocalizedBlocks = [
+            {
+                label: 'Vocalized A',
+                prompt: 'Prompt: [Inside a high-tech virtual office, a frustrated employee sighs and mutters to themself: \'Another server crash... just great.\', followed by the sound of keyboard clicks.]',
+                baselines: ['wav/audiogen/voxaudio/3103.wav','wav/genau/voxaudio/3103.wav','wav/audioldm2/voxaudio/3103.wav','wav/tango2/voxaudio/3103.wav','wav/mmaudio/voxaudio/3103.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/voxaudio/3103.wav','wav/rl_se/voxaudio/3103.wav','wav/rl_ae/voxaudio/3103.wav','wav/rl_li/voxaudio/3103.wav','wav/voxaudio/voxaudio/3103.wav']
+            },
+            {
+                label: 'Vocalized B',
+                prompt: 'Prompt: [A cooking vlogger films a scene in their miniature kitchen, providing a soft-spoken ASMR tutorial, stating: \'Next, we add a pinch of salt.\' Followed by the very subtle sound of salt being sprinkled."]',
+                baselines: ['wav/audiogen/voxaudio/316.wav','wav/genau/voxaudio/316.wav','wav/audioldm2/voxaudio/316.wav','wav/tango2/voxaudio/316.wav','wav/mmaudio/voxaudio/316.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/voxaudio/316.wav','wav/rl_se/voxaudio/316.wav','wav/rl_ae/voxaudio/316.wav','wav/rl_li/voxaudio/316.wav','wav/voxaudio/voxaudio/316.wav']
+            },
+            {
+                label: 'Vocalized C',
+                prompt: 'Prompt: [Tapping on a wooden table, someone thoughtfully says: \'Let\'s see... what should we do next?\', followed by the sound of pen clicking.]',
+                baselines: ['wav/audiogen/voxaudio/124.wav','wav/genau/voxaudio/124.wav','wav/audioldm2/voxaudio/124.wav','wav/tango2/voxaudio/124.wav','wav/mmaudio/voxaudio/124.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/voxaudio/124.wav','wav/rl_se/voxaudio/124.wav','wav/rl_ae/voxaudio/124.wav','wav/rl_li/voxaudio/124.wav','wav/voxaudio/voxaudio/124.wav']
+            },
+            {
+                label: 'Vocalized D',
+                prompt: 'Prompt: [At a city park pond, ducks quack as an elderly man feeds them bread crumbs. He chuckles softly, saying: \'Here you go, little fellas.\']',
+                baselines: ['wav/audiogen/voxaudio/640.wav','wav/genau/voxaudio/640.wav','wav/audioldm2/voxaudio/640.wav','wav/tango2/voxaudio/640.wav','wav/mmaudio/voxaudio/640.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/voxaudio/640.wav','wav/rl_se/voxaudio/640.wav','wav/rl_ae/voxaudio/640.wav','wav/rl_li/voxaudio/640.wav','wav/voxaudio/voxaudio/640.wav']
+            },
+            {
+                label: 'Vocalized E',
+                prompt: 'Prompt: [A boxer training with a speed bag. The rhythmic thud of the bag, the boxer\'s grunts, and his coach saying: \'Keep your hands up!\' can be heard.]',
+                baselines: ['wav/audiogen/voxaudio/5486.wav','wav/genau/voxaudio/5486.wav','wav/audioldm2/voxaudio/5486.wav','wav/tango2/voxaudio/5486.wav','wav/mmaudio/voxaudio/5486.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/voxaudio/5486.wav','wav/rl_se/voxaudio/5486.wav','wav/rl_ae/voxaudio/5486.wav','wav/rl_li/voxaudio/5486.wav','wav/voxaudio/voxaudio/5486.wav']
+            },
+            {
+                label: 'Vocalized F',
+                prompt: 'Prompt: [Abandoned SeaWorld park, echoing with wind. A man walks through and says sadly: \'They used to perform tricks here.\' Followed by mournful dolphin-like echoes.]',
+                baselines: ['wav/audiogen/voxaudio/633.wav','wav/genau/voxaudio/633.wav','wav/audioldm2/voxaudio/633.wav','wav/tango2/voxaudio/633.wav','wav/mmaudio/voxaudio/633.wav'],
+                baselineLabels: ['AudioGen','GenAU','AudioLDM-2','Tango2','MMAudio'],
+                oursLabels: ['w/o All','w/o Semantic','w/o Aesthetic','w/o Linguistic','VoxAudio (Full)'],
+                oursFiles: ['wav/rl_all/voxaudio/633.wav','wav/rl_se/voxaudio/633.wav','wav/rl_ae/voxaudio/633.wav','wav/rl_li/voxaudio/633.wav','wav/voxaudio/voxaudio/633.wav']
+              }
+        ];
+
+        // Ablation groups: can be an array of group objects with `files` and optional `prompt`.
+        // If `prompt` is present it will be shown above the group's audio row.
+        const ablationGroups = [
+            {
+                prompt: 'Prompt: [Two climbers reach the edge of the ice lake after a long trek. One pants heavily and says to the other: \'Finally... made it... Let\'s rest here.\' followed by the sound of heavy breathing. ]',
+                files: ['wav/abl_worepa/voxaudio/5417.wav','wav/abl_wos/voxaudio/5417.wav','wav/voxaudio/voxaudio/5417.wav']
+            },
+            {
+                prompt: 'Prompt: [Multiple basketballs bouncing on a hard surface and shoes squeaking as a man shouts in the distance. ]',
+                files: ['wav/abl_worepa/audiocaps/4745.wav','wav/abl_wos/audiocaps/4745.wav','wav/voxaudio/audiocaps/4745.wav']
+            },
+            {
+              prompt: 'Prompt: [Ducks squeaking in the distance followed by a shotgun blast]',
+              files: ['wav/abl_worepa/audiocaps/712.wav','wav/abl_wos/audiocaps/712.wav','wav/voxaudio/audiocaps/712.wav']
+            }
+        ];
+
+        // Render the tables on DOM ready
+        document.addEventListener('DOMContentLoaded', ()=>{
+            render5colTable('general-table-body', generalBlocks);
+            render5colTable('vocalized-table-body', vocalizedBlocks);
+            renderAblationTable('ablation-table-body', ablationGroups);
+        });
+        </script>
+
+</body>
+</html>
